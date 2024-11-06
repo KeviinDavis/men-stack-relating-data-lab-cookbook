@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
-
 const User = require('../models/user.js');
+
+// Authentication Routes
 
 router.get('/sign-up', (req, res) => {
   res.render('auth/sign-up.ejs');
@@ -19,25 +20,19 @@ router.get('/sign-out', (req, res) => {
 
 router.post('/sign-up', async (req, res) => {
   try {
-    // Check if the username is already taken
     const userInDatabase = await User.findOne({ username: req.body.username });
     if (userInDatabase) {
       return res.send('Username already taken.');
     }
-  
-    // Username is not taken already!
-    // Check if the password and confirm password match
+
     if (req.body.password !== req.body.confirmPassword) {
       return res.send('Password and Confirm Password must match');
     }
-  
-    // Must hash the password before sending to the database
+
     const hashedPassword = bcrypt.hashSync(req.body.password, 10);
     req.body.password = hashedPassword;
-  
-    // All ready to create the new user!
     await User.create(req.body);
-  
+
     res.redirect('/auth/sign-in');
   } catch (error) {
     console.log(error);
@@ -47,34 +42,95 @@ router.post('/sign-up', async (req, res) => {
 
 router.post('/sign-in', async (req, res) => {
   try {
-    // First, get the user from the database
     const userInDatabase = await User.findOne({ username: req.body.username });
     if (!userInDatabase) {
       return res.send('Login failed. Please try again.');
     }
-  
-    // There is a user! Time to test their password with bcrypt
-    const validPassword = bcrypt.compareSync(
-      req.body.password,
-      userInDatabase.password
-    );
+
+    const validPassword = bcrypt.compareSync(req.body.password, userInDatabase.password);
     if (!validPassword) {
       return res.send('Login failed. Please try again.');
     }
-  
-    // There is a user AND they had the correct password. Time to make a session!
-    // Avoid storing the password, even in hashed format, in the session
-    // If there is other data you want to save to `req.session.user`, do so here!
+
     req.session.user = {
       username: userInDatabase.username,
       _id: userInDatabase._id
     };
-  
+
     res.redirect('/');
   } catch (error) {
     console.log(error);
     res.redirect('/');
   }
 });
+
+// Basic Pantry View Route (Protected)
+router.get('/users/:userId/foods', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    res.render('index.ejs', { user: req.session.user, pantry: user.pantry });
+  } catch (error) {
+    console.log(error);
+    res.redirect('/');
+  }
+});
+
+// Create Route: Add new pantry item to the user's pantry
+router.post('/users/:userId/foods', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    user.pantry.push({ name: req.body.name });  
+    await user.save();  
+    res.redirect(`/users/${req.params.userId}/foods`);
+  } catch (error) {
+    console.log(error);
+    res.redirect('/');
+  }
+});
+
+// Edit Route: Show form to edit a pantry item
+router.get('/users/:userId/foods/:itemId/edit', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    const item = user.pantry.id(req.params.itemId);
+    res.render('index.ejs', { user: req.session.user, pantry: user.pantry, itemToEdit: item });
+  } catch (error) {
+    console.log(error);
+    res.redirect('/');
+  }
+});
+
+// Update Route: Update a pantry item
+router.put('/users/:userId/foods/:itemId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    const item = user.pantry.id(req.params.itemId);  // Find the item by ID
+    item.name = req.body.name;  // Update the item name
+    await user.save();  // Save changes
+    res.redirect(`/users/${req.params.userId}/foods`);  // Redirect back to pantry view
+  } catch (error) {
+    console.log(error);
+    res.redirect('/');
+  }
+});
+
+// Delete Route: Remove a pantry item
+router.delete('/users/:userId/foods/:itemId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    const itemIndex = user.pantry.findIndex(item => item._id.toString() === req.params.itemId);
+
+    if (itemIndex > -1) {
+      user.pantry.splice(itemIndex, 1);
+      await user.save(); 
+    }
+    res.redirect(`/users/${req.params.userId}/foods`);
+  } catch (error) {
+    console.log(error);
+    res.redirect('/');
+  }
+});
+
+
 
 module.exports = router;

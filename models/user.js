@@ -1,6 +1,15 @@
 const mongoose = require('mongoose');
 
-const userSchema = mongoose.Schema({
+// Define the embedded schema for pantry items 
+const foodSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  },
+});
+
+// Define the userSchema and embed the foodSchema within it as an array
+const userSchema = new mongoose.Schema({
   username: {
     type: String,
     required: true,
@@ -9,8 +18,10 @@ const userSchema = mongoose.Schema({
     type: String,
     required: true,
   },
+  pantry: [foodSchema]  // Embed the foodSchema here as an array
 });
 
+// Create the User model
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;

@@ -6,18 +6,59 @@
   <title>Home Page</title>
 </head>
 <body>
-  <% if (user) { %>
-    <h1>Welcome to the app, <%= user.username %>!</h1>
-    <p>
-      <a href="/auth/sign-out">Sign out</a>
-    </p>
+  <% if (!pantry) { %>
+    <!-- Homepage Content for Users and Guests -->
+    <% if (user) { %>
+      <h1>Welcome to the app, <%= user.username %>!</h1>
+      <p>
+        <a href="/auth/sign-out">Sign out</a> |
+        <a href="/users/<%= user._id %>/foods">View My Pantry</a>
+      </p>
+    <% } else { %>
+      <h1>Welcome to the app, guest.</h1>
+      <p>
+        <a href="/auth/sign-up">Sign up</a> or
+        <a href="/auth/sign-in">Sign in</a>
+      </p>
+    <% } %>
+
   <% } else { %>
-    <h1>Welcome to the app, guest.</h1>
-    <p>
-      <a href="/auth/sign-up">Sign up</a> or
-      <a href="/auth/sign-in">Sign in</a>.
-    </p>
+    <!-- Pantry View for Logged-in Users -->
+    <h1><%= user.username %>'s Pantry</h1>
+    <p><a href="/">Back to Home</a></p> <!-- Add link to navigate back to Home -->
+
+    <% if (pantry.length > 0) { %>
+      <ul>
+        <% pantry.forEach(item => { %>
+          <li>
+            <%= item.name %>
+            | <a href="/users/<%= user._id %>/foods/<%= item._id %>/edit">Edit</a>
+            | <form action="/users/<%= user._id %>/foods/<%= item._id %>?_method=DELETE" method="POST" style="display:inline;">
+                <button type="submit">Delete</button>
+              </form>
+          </li>
+        <% }) %>
+      </ul>
+    <% } else { %>
+      <p>Your pantry is empty! Start adding items.</p>
+    <% } %>
+
+    <h2>Add a New Item</h2>
+    <form action="/users/<%= user._id %>/foods" method="POST">
+      <label for="name">Food Name:</label>
+      <input type="text" name="name" id="name" required>
+      <button type="submit">Add Item</button>
+    </form>
+
+    <!-- Edit Item Form (Conditionally Rendered) -->
+    <% if (typeof itemToEdit !== 'undefined') { %>
+      <h2>Edit Item</h2>
+      <form action="/users/<%= user._id %>/foods/<%= itemToEdit._id %>?_method=PUT" method="POST">
+        <label for="name">Food Name:</label>
+        <input type="text" name="name" id="name" value="<%= itemToEdit.name %>" required>
+        <button type="submit">Update Item</button>
+      </form>
+    <% } %>
   <% } %>
-  <p><a href="/vip-lounge">Get into the VIP Users Only lounge!</a></p>
 </body>
 </html>
